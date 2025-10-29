@@ -77,6 +77,16 @@ sanctions-watch validate --source all
 sanctions-watch --help
 ```
 
+### Mock data (offline mode)
+
+- Some official sanctions endpoints require authentication or access approval. To keep this project runnable, mock data files are included under `mock_data/` (eu.xml, ofac.xml, un.xml, uk.csv).
+- Real source URLs were removed from the codebase and replaced with placeholders; use the mock data for demos and tests.
+- Run with mock data:
+
+```bash
+sanctions-watch crawl --source all --mock-data-dir ./mock_data --output sanctions_mock.json
+```
+
 
 ## 🧪 Testing
 

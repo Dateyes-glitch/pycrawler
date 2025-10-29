@@ -19,7 +19,7 @@ class EUSanctionsCrawler(BaseCrawler):
     
     DEFAULT_CONFIG = CrawlerConfig(
         source="eu-sanctions",
-        base_url="https://webgate.ec.europa.eu/fsd/fsf/public/files/xmlFullSanctionsList_1_1/content",
+        base_url="https://placeholder.invalid/eu/full_sanctions.xml",
         rate_limit_seconds=2.0,
         timeout_seconds=60,
     )
@@ -31,8 +31,13 @@ class EUSanctionsCrawler(BaseCrawler):
     async def _fetch_data(self) -> ET.Element:
         """Fetch EU sanctions XML data."""
         try:
-            response = await self._make_request(self.config.base_url)
-            content = await response.text()
+            mock_file = self.config.custom_settings.get('mock_file') if hasattr(self.config, 'custom_settings') else None
+            if mock_file:
+                with open(mock_file, 'r', encoding='utf-8') as f:
+                    content = f.read()
+            else:
+                response = await self._make_request(self.config.base_url)
+                content = await response.text()
             
             # Parse XML
             root = ET.fromstring(content)

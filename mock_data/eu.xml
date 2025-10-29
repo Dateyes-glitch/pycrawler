@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<SANCTIONS_LIST>
+  <sanctionEntity>
+    <unitId>EU123</unitId>
+    <nameAlias>
+      <wholeName>Jane Smith</wholeName>
+    </nameAlias>
+    <address>
+      <street>1 EU Road</street>
+      <city>Brussels</city>
+      <country>BE</country>
+      <zipCode>1000</zipCode>
+    </address>
+    <identification>
+      <identificationTypeCode>PASSPORT</identificationTypeCode>
+      <number>BE123456</number>
+      <countryIso2Code>BE</countryIso2Code>
+    </identification>
+    <birthdate>1980-05-05</birthdate>
+  </sanctionEntity>
+</SANCTIONS_LIST>

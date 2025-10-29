@@ -19,7 +19,7 @@ class UKTreasuryCrawler(BaseCrawler):
     
     DEFAULT_CONFIG = CrawlerConfig(
         source="uk-treasury",
-        base_url="https://ofsistorage.blob.core.windows.net/publishlive/2022format/ConList.csv",
+        base_url="https://placeholder.invalid/uk/ConList.csv",
         rate_limit_seconds=2.0,
         timeout_seconds=60,
     )
@@ -31,8 +31,13 @@ class UKTreasuryCrawler(BaseCrawler):
     async def _fetch_data(self) -> List[Dict[str, str]]:
         """Fetch UK Treasury sanctions CSV data."""
         try:
-            response = await self._make_request(self.config.base_url)
-            content = await response.text()
+            mock_file = self.config.custom_settings.get('mock_file') if hasattr(self.config, 'custom_settings') else None
+            if mock_file:
+                with open(mock_file, 'r', encoding='utf-8') as f:
+                    content = f.read()
+            else:
+                response = await self._make_request(self.config.base_url)
+                content = await response.text()
             
             # Parse CSV
             csv_reader = csv.DictReader(io.StringIO(content))

@@ -19,7 +19,7 @@ class OFACCrawler(BaseCrawler):
     
     DEFAULT_CONFIG = CrawlerConfig(
         source="ofac",
-        base_url="https://www.treasury.gov/ofac/downloads/sdn.xml",
+        base_url="https://placeholder.invalid/ofac/sdn.xml",
         rate_limit_seconds=3.0,
         timeout_seconds=120,
     )
@@ -31,8 +31,14 @@ class OFACCrawler(BaseCrawler):
     async def _fetch_data(self) -> ET.Element:
         """Fetch OFAC SDN XML data."""
         try:
-            response = await self._make_request(self.config.base_url)
-            content = await response.text()
+            # If mock file is configured, read from disk
+            mock_file = self.config.custom_settings.get('mock_file') if hasattr(self.config, 'custom_settings') else None
+            if mock_file:
+                with open(mock_file, 'r', encoding='utf-8') as f:
+                    content = f.read()
+            else:
+                response = await self._make_request(self.config.base_url)
+                content = await response.text()
             
             # Parse XML
             root = ET.fromstring(content)
@@ -49,15 +55,20 @@ class OFACCrawler(BaseCrawler):
         """Parse an individual entity from OFAC SDN XML."""
         try:
             # Extract basic information
-            entity_id = xml_element.get('uid') or xml_element.find('.//uid').text
+            entity_id = (
+                xml_element.get('uid')
+                or self._get_xml_text(xml_element, './/uid')
+                or self._get_xml_text(xml_element, './/uidNumber')
+                or 'unknown'
+            )
             first_name = self._get_xml_text(xml_element, './/firstName')
             last_name = self._get_xml_text(xml_element, './/lastName')
             
             # Construct name
-            if first_name and last_name:
-                primary_name = f"{first_name} {last_name}".strip()
+            if first_name or last_name:
+                primary_name = ' '.join(filter(None, [first_name, last_name])).strip() or 'Unknown'
             else:
-                primary_name = self._get_xml_text(xml_element, './/title') or "Unknown"
+                primary_name = self._get_xml_text(xml_element, './/title') or 'Unknown'
                 
             # Extract aliases
             alternative_names = self._extract_aliases(xml_element)

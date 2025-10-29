@@ -16,6 +16,9 @@ from rich.panel import Panel
 
 from .core.models import CrawlResult, CrawlerConfig
 from .crawlers import EUSanctionsCrawler, OFACCrawler, UNSanctionsCrawler, UKTreasuryCrawler
+from .processors.normalizer import normalize_entities
+from .processors.deduplicator import deduplicate_entities
+from .processors.enricher import enrich_entities
 
 
 # Configure logging
@@ -69,14 +72,16 @@ def cli(verbose: bool, quiet: bool):
               type=click.Choice(list(CRAWLERS.keys()) + ['all']),
               default=['all'], help='Source(s) to crawl')
 @click.option('--output', '-o', type=click.Path(), help='Output file path')
-@click.option('--format', 'output_format', type=click.Choice(['json', 'csv']), 
+@click.option('--format', 'output_format', type=click.Choice(['json', 'csv', 'excel', 'sqlite']), 
               default='json', help='Output format')
 @click.option('--rate-limit', type=float, default=2.0, 
               help='Rate limit in seconds between requests')
 @click.option('--timeout', type=int, default=60, 
               help='Request timeout in seconds')
+@click.option('--mock-data-dir', type=click.Path(exists=True, file_okay=False, dir_okay=True),
+              help='Directory containing mock data files for offline testing')
 def crawl(source: List[str], output: Optional[str], output_format: str, 
-          rate_limit: float, timeout: int):
+          rate_limit: float, timeout: int, mock_data_dir: Optional[str]):
     """Crawl sanctions data from specified sources."""
     
     # Determine which sources to crawl
@@ -92,7 +97,7 @@ def crawl(source: List[str], output: Optional[str], output_format: str,
     ))
     
     # Run the crawl
-    results = asyncio.run(_run_crawl(sources_to_crawl, rate_limit, timeout))
+    results = asyncio.run(_run_crawl(sources_to_crawl, rate_limit, timeout, mock_data_dir))
     
     # Display results
     _display_results(results)
@@ -103,7 +108,7 @@ def crawl(source: List[str], output: Optional[str], output_format: str,
         console.print(f"✅ Results saved to {output}")
 
 
-async def _run_crawl(sources: List[str], rate_limit: float, timeout: int) -> Dict[str, CrawlResult]:
+async def _run_crawl(sources: List[str], rate_limit: float, timeout: int, mock_data_dir: Optional[str] = None) -> Dict[str, CrawlResult]:
     """Run crawl for specified sources."""
     results = {}
     
@@ -125,11 +130,27 @@ async def _run_crawl(sources: List[str], rate_limit: float, timeout: int) -> Dic
             config.rate_limit_seconds = rate_limit
             config.timeout_seconds = timeout
             
+            # If mock data directory provided, point crawler to local mock file
+            if mock_data_dir:
+                mock_map = {
+                    'eu-sanctions': 'eu.xml',
+                    'ofac': 'ofac.xml',
+                    'un-sanctions': 'un.xml',
+                    'uk-treasury': 'uk.csv',
+                }
+                filename = mock_map.get(source_name)
+                if filename:
+                    config.custom_settings['mock_file'] = str(Path(mock_data_dir) / filename)
+            
             crawler_task = progress.add_task(f"Crawling {source_name}", total=None)
             
             try:
                 async with crawler_class(config) as crawler:
                     result = await crawler.crawl()
+                    # Post-processing: normalize, deduplicate, enrich
+                    processed = enrich_entities(deduplicate_entities(normalize_entities(result.entities)))
+                    result.entities = processed
+                    result.total_entities = len(processed)
                     results[source_name] = result
                     
                 progress.update(crawler_task, completed=True, description=f"✅ {source_name}")
@@ -214,26 +235,93 @@ def _save_results(results: Dict[str, CrawlResult], output_path: str, format: str
                     'source': source_name,
                     'id': entity.id,
                     'name': entity.name,
-                    'entity_type': entity.entity_type,
-                    'sanction_status': entity.sanction_status,
+                    'entity_type': str(entity.entity_type),
+                    'sanction_status': str(entity.sanction_status),
                     'nationality': entity.nationality,
+                    'identifiers_count': len(entity.identifiers),
+                    'addresses_count': len(entity.addresses),
+                    'data_quality_score': entity.data_quality_score,
                     'last_updated': entity.last_updated.isoformat() if entity.last_updated else None,
                 }
                 records.append(record)
         
+        pd.DataFrame(records).to_csv(output_file, index=False)
+    
+    elif format == 'excel':
+        import pandas as pd
+        records = []
+        for source_name, result in results.items():
+            for entity in result.entities:
+                records.append({
+                    'source': source_name,
+                    'id': entity.id,
+                    'name': entity.name,
+                    'entity_type': str(entity.entity_type),
+                    'sanction_status': str(entity.sanction_status),
+                    'nationality': entity.nationality,
+                    'identifiers_count': len(entity.identifiers),
+                    'addresses_count': len(entity.addresses),
+                    'data_quality_score': entity.data_quality_score,
+                    'last_updated': entity.last_updated.isoformat() if entity.last_updated else None,
+                })
         df = pd.DataFrame(records)
-        df.to_csv(output_file, index=False)
+        with pd.ExcelWriter(output_file, engine='openpyxl') as writer:
+            df.to_excel(writer, index=False, sheet_name='entities')
+    
+    elif format == 'sqlite':
+        import pandas as pd
+        from sqlalchemy import create_engine
+        records = []
+        for source_name, result in results.items():
+            for entity in result.entities:
+                records.append({
+                    'source': source_name,
+                    'id': entity.id,
+                    'name': entity.name,
+                    'entity_type': str(entity.entity_type),
+                    'sanction_status': str(entity.sanction_status),
+                    'nationality': entity.nationality,
+                    'identifiers_count': len(entity.identifiers),
+                    'addresses_count': len(entity.addresses),
+                    'data_quality_score': entity.data_quality_score,
+                    'last_updated': entity.last_updated.isoformat() if entity.last_updated else None,
+                })
+        engine = create_engine(f'sqlite:///{output_file}')
+        pd.DataFrame(records).to_sql('entities', engine, if_exists='replace', index=False)
 
 
 @cli.command()
 @click.option('--source', '-s', type=click.Choice(list(CRAWLERS.keys()) + ['all']),
               default='all', help='Source to validate')
-def validate(source: str):
+@click.option('--rate-limit', type=float, default=2.0, 
+              help='Rate limit in seconds between requests')
+@click.option('--timeout', type=int, default=60, 
+              help='Request timeout in seconds')
+@click.option('--mock-data-dir', type=click.Path(exists=True, file_okay=False, dir_okay=True),
+              help='Directory containing mock data files for offline testing')
+def validate(source: str, rate_limit: float, timeout: int, mock_data_dir: Optional[str]):
     """Validate data quality for specified source."""
     console.print(f"🔍 Validating data quality for: {source}")
     
-    # TODO: Implement data validation logic
-    console.print("⚠️  Data validation not implemented yet")
+    sources_to_check = list(CRAWLERS.keys()) if source == 'all' else [source]
+    # Run the same pipeline to get processed entities
+    results = asyncio.run(_run_crawl(sources_to_check, rate_limit, timeout, mock_data_dir))
+    
+    table = Table(title="Data Quality Metrics")
+    table.add_column("Source", style="cyan")
+    table.add_column("Entities", justify="right")
+    table.add_column("With Address", justify="right")
+    table.add_column("With IDs", justify="right")
+    table.add_column("Avg Quality", justify="right")
+    
+    for src, res in results.items():
+        total = len(res.entities)
+        with_addr = sum(1 for e in res.entities if e.addresses)
+        with_ids = sum(1 for e in res.entities if e.identifiers)
+        avg_quality = round(sum((e.data_quality_score or 0.0) for e in res.entities) / total, 2) if total else 0.0
+        table.add_row(src, str(total), str(with_addr), str(with_ids), f"{avg_quality:.2f}")
+    
+    console.print(table)
 
 
 @cli.command()

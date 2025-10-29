@@ -19,7 +19,7 @@ class UNSanctionsCrawler(BaseCrawler):
     
     DEFAULT_CONFIG = CrawlerConfig(
         source="un-sanctions",
-        base_url="https://scsanctions.un.org/resources/xml/en/consolidated.xml",
+        base_url="https://placeholder.invalid/un/consolidated.xml",
         rate_limit_seconds=3.0,
         timeout_seconds=90,
     )
@@ -31,8 +31,13 @@ class UNSanctionsCrawler(BaseCrawler):
     async def _fetch_data(self) -> ET.Element:
         """Fetch UN sanctions XML data."""
         try:
-            response = await self._make_request(self.config.base_url)
-            content = await response.text()
+            mock_file = self.config.custom_settings.get('mock_file') if hasattr(self.config, 'custom_settings') else None
+            if mock_file:
+                with open(mock_file, 'r', encoding='utf-8') as f:
+                    content = f.read()
+            else:
+                response = await self._make_request(self.config.base_url)
+                content = await response.text()
             
             # Parse XML
             root = ET.fromstring(content)
@@ -49,10 +54,26 @@ class UNSanctionsCrawler(BaseCrawler):
         """Parse an individual entity from UN sanctions XML."""
         try:
             # Extract basic information
-            entity_id = self._get_xml_text(xml_element, '@dataid') or self._get_xml_text(xml_element, 'REFERENCE_NUMBER')
+            entity_id = (
+                xml_element.get('dataid')
+                or self._get_xml_text(xml_element, '@dataid')
+                or self._get_xml_text(xml_element, 'REFERENCE_NUMBER')
+                or 'unknown'
+            )
             
             # Extract names
             names = self._extract_names(xml_element)
+            if not names:
+                # Fallback for simple mock inputs
+                names = [
+                    ' '.join(filter(None, [
+                        self._get_xml_text(xml_element, 'FIRST_NAME'),
+                        self._get_xml_text(xml_element, 'SECOND_NAME'),
+                        self._get_xml_text(xml_element, 'THIRD_NAME'),
+                        self._get_xml_text(xml_element, 'FOURTH_NAME'),
+                    ])).strip()
+                ]
+                names = [n for n in names if n]
             primary_name = names[0] if names else "Unknown"
             alternative_names = names[1:] if len(names) > 1 else []
             
@@ -246,11 +267,15 @@ class UNSanctionsCrawler(BaseCrawler):
             self.logger.warning("Failed to parse UN personal info", error=str(e))
             
     def _get_xml_text(self, element: ET.Element, xpath: str) -> Optional[str]:
-        """Safely get text from XML element."""
+        """Safely get text from XML element, supports attribute lookups like '@attr'."""
         try:
+            if xpath.startswith('@'):
+                attr = xpath[1:]
+                val = element.get(attr)
+                return val.strip() if isinstance(val, str) else val
             found = element.find(xpath)
             return found.text.strip() if found is not None and found.text else None
-        except AttributeError:
+        except Exception:
             return None
             
     def _map_identifier_type(self, un_type: Optional[str]) -> IdentifierType:

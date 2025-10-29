@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<sdnList>
+  <sdnEntry uid="1" sdnType="Individual">
+    <firstName>John</firstName>
+    <lastName>Doe</lastName>
+    <akaList>
+      <aka type="aka">
+        <firstName>Johnny</firstName>
+        <lastName>Doe</lastName>
+      </aka>
+    </akaList>
+    <addressList>
+      <address>
+        <address1>123 Main St</address1>
+        <city>Springfield</city>
+        <stateOrProvince>IL</stateOrProvince>
+        <postalCode>62701</postalCode>
+        <country>US</country>
+      </address>
+    </addressList>
+    <dateOfBirthList>
+      <dateOfBirth>1970-01-01</dateOfBirth>
+    </dateOfBirthList>
+    <idList>
+      <id>
+        <idType>Passport</idType>
+        <idNumber>AB1234567</idNumber>
+        <idCountry>US</idCountry>
+      </id>
+    </idList>
+    <programList>
+      <program>SDGT</program>
+    </programList>
+  </sdnEntry>
+  <sdnEntry uid="2" sdnType="Entity">
+    <title>Acme Corp</title>
+    <addressList>
+      <address>
+        <address1>456 Market St</address1>
+        <city>Metropolis</city>
+        <country>US</country>
+      </address>
+    </addressList>
+  </sdnEntry>
+</sdnList>
