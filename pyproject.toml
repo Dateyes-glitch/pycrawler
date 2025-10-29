@@ -8,7 +8,6 @@ version = "0.1.0"
 description = "A comprehensive sanctions data crawler framework"
 readme = "README.md"
 requires-python = ">=3.8"
-license = {text = "MIT"}
 authors = [
     {name = "Dateyes-glitch"},
 ]
@@ -16,7 +15,6 @@ keywords = ["sanctions", "compliance", "data", "crawler", "fintech"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
-    "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.8",
@@ -58,11 +56,6 @@ dev = [
 
 [project.scripts]
 sanctions-watch = "sanctions_watch.cli:main"
-
-[project.urls]
-Homepage = "https://github.com/yourusername/sanctions-watch"
-Repository = "https://github.com/yourusername/sanctions-watch"
-Issues = "https://github.com/yourusername/sanctions-watch/issues"
 
 [tool.setuptools.packages.find]
 where = ["src"]
