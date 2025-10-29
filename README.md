@@ -77,20 +77,6 @@ sanctions-watch validate --source all
 sanctions-watch --help
 ```
 
-### Python API
-
-```python
-from sanctions_watch import SanctionsCrawler, EUSanctionsCrawler
-
-# Initialize crawler
-crawler = EUSanctionsCrawler()
-
-# Run crawl
-entities = crawler.crawl()
-
-# Process results
-for entity in entities:
-    print(f"Entity: {entity.name}, Type: {entity.entity_type}")
 ```
 
 ## 🏗️ Architecture
@@ -129,11 +115,6 @@ src/sanctions_watch/
 | UN Security Council | XML | As needed | Structured |
 | UK HM Treasury | Excel/CSV | Weekly | Semi-structured |
 
-### Planned Additions
-- CFTC Red List
-- Canadian Sanctions
-- Australian Sanctions
-- Japanese Sanctions
 
 ## 📊 Data Model
 
@@ -179,30 +160,9 @@ pytest tests/test_crawlers.py
 - **Data Privacy**: No personal data storage beyond sanctions lists
 - **Attribution**: Proper source attribution and licensing
 
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/new-source`)
-3. Commit changes (`git commit -am 'Add new sanctions source'`)
-4. Push to branch (`git push origin feature/new-source`)
-5. Create Pull Request
-
-## 📝 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
 ## 🙏 Acknowledgments
 
 - Inspired by [OpenSanctions](https://opensanctions.org) methodology
 - Built for compliance and transparency in financial services
-- Special thanks to the open-source community
-
-## 📞 Contact
-
-- **Email**: your.email@example.com
-- **LinkedIn**: [Your LinkedIn](https://linkedin.com/in/yourprofile)
-- **GitHub**: [Your GitHub](https://github.com/yourusername)
-
----
 
 *This project demonstrates practical skills in web scraping, data engineering, and compliance technology suitable for roles in fintech, regtech, and data engineering.*
